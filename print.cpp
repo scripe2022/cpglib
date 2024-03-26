@@ -3,11 +3,11 @@
 #include <fstream>
 #include <filesystem>
 
-#define COLORPRINT(x, d) std::cerr<<FORE_COLOR_LIST[(d)]<<(x)<<COLOR_SUFFIX
-#define PADDING(x) for(int i_=0;i_<(4*(x));++i_)std::cerr<<" ";
+#define COLORPRINT(x, d) std::cout<<FORE_COLOR_LIST[(d)]<<(x)<<COLOR_SUFFIX
+#define PADDING(x) for(int i_=0;i_<(4*(x));++i_)std::cout<<" ";
 
-const std::string COLOR_PREFIX = "\e[41m";
-const std::string COLOR_NAME_PREFIX = "\e[45m";
+const std::string COLOR_PREFIX = "\e[41m\e[97m";
+const std::string COLOR_NAME_PREFIX = "\e[45m\e[97m";
 const std::string COLOR_SUFFIX = "\e[0m";
 const std::string BACK_COLOR_LIST[] = {"", "\033[1;32m", "\033[1;34m", "\033[1;39m", "\033[1;37m"};
 const std::string FORE_COLOR_LIST[] = {"\033[1;31m", "\033[1;32m", "\033[1;33m", "\033[1;35m", "\033[1;36m"};
@@ -16,14 +16,21 @@ std::string add_single_quotes(const std::string &s) {return "\'" + s + "\'"; }
 std::string add_double_quotes(const std::string &s) {return "\"" + s + "\""; }
 
 std::string _split_name(std::string &args_name) {
-    size_t pos = args_name.find(", ");
-    if (pos == std::string::npos) {
-        std::string rtn = args_name;
-        args_name.clear();
-        return rtn;
+    size_t start, end;
+    for (start = 0; start < args_name.size() && args_name[start] == ' '; ++start);
+    size_t curly = 0, bracket = 0, parenthese = 0;
+    for (end = start; end < args_name.size(); ++end) {
+        if (args_name[end] == '{') ++curly;
+        else if (args_name[end] == '}') --curly;
+        else if (args_name[end] == '[') ++bracket;
+        else if (args_name[end] == ']') --bracket;
+        else if (args_name[end] == '(') ++parenthese;
+        else if (args_name[end] == ')') --parenthese;
+        else if (args_name[end] == ',' && curly == 0 && bracket == 0 && parenthese == 0) break;
     }
-    std::string rtn = args_name.substr(0, pos);
-    args_name.erase(0, pos + 2);
+    std::string rtn = args_name.substr(start, end - start);
+    if (end == args_name.size()) args_name.clear();
+    else args_name = args_name.substr(end + 1);
     return rtn;
 }
 
@@ -44,150 +51,154 @@ std::string _print(const char &var) {std::string s(1, var); return _combine(CHAR
 std::string _print(const char *var) {return _combine(CSTR, add_double_quotes(var)); }
 std::string _print(const std::string &var) {return _combine(STRING, add_double_quotes(var)); }
 std::string _print(const bool &var) {return _combine(BOOL, var ? "true" : "false"); }
+std::string _print(const std::_Bit_reference &var) {return _print(static_cast<bool>(var)); }
 
 void print_inline(const nlohmann::json obj) {
     int32_t var_type = obj["type"];
     nlohmann::json var = obj["value"];
     switch (var_type) {
         case INT32:
-            std::cerr << var.get<int32_t>();
+            std::cout << var.get<int32_t>();
             break;
         case INT64:
-            std::cerr << var.get<int64_t>();
+            std::cout << var.get<int64_t>();
             break;
         case UINT32:
-            std::cerr << var.get<uint32_t>();
+            std::cout << var.get<uint32_t>();
             break;
         case UINT64:
-            std::cerr << var.get<uint64_t>();
+            std::cout << var.get<uint64_t>();
             break;
         case FLOAT:
-            std::cerr << var.get<float>();
+            std::cout << var.get<float>();
             break;
         case DOUBLE:
-            std::cerr << var.get<double>();
+            std::cout << var.get<double>();
             break;
         case LONGDOUBLE:
-            std::cerr << var.get<long double>();
+            std::cout << var.get<long double>();
             break;
         case CHAR:
-            std::cerr << "\'" << var.get<std::string>() << "\'";
+            std::cout << "\'" << var.get<std::string>() << "\'";
             break;
         case CSTR:
-            std::cerr << "\"" << var.get<std::string>() << "\"";
+            std::cout << "\"" << var.get<std::string>() << "\"";
             break;
         case STRING:
-            std::cerr << "\"" << var.get<std::string>() << "\"";
+            std::cout << "\"" << var.get<std::string>() << "\"";
             break;
         case BOOL:
-            std::cerr << (var.get<bool>() ? "true" : "false");
+            std::cout << (var.get<bool>() ? "true" : "false");
             break;
         case PAIR:
-            std::cerr << "{";
+            std::cout << "{";
             print_inline(var[0]);
-            std::cerr << ", ";
+            std::cout << ", ";
             print_inline(var[1]);
-            std::cerr << "}";
+            std::cout << "}";
             break;
         case TUPLE:
-            std::cerr << "{";
+            std::cout << "{";
             for (int i = 0; i < (int32_t)var.size(); ++i) {
                 print_inline(var[i]);
-                if (i + 1 != (int32_t)var.size()) std::cerr << ", ";
+                if (i + 1 != (int32_t)var.size()) std::cout << ", ";
             }
-            std::cerr << "}";
+            std::cout << "}";
             break;
         case VECTOR:
-            std::cerr << "[";
+            std::cout << "[";
             for (int i = 0; i < (int32_t)var.size(); ++i) {
                 print_inline(var[i]);
-                if (i + 1 != (int32_t)var.size()) std::cerr << ", ";
+                if (i + 1 != (int32_t)var.size()) std::cout << ", ";
             }
-            std::cerr << "]";
+            std::cout << "]";
             break;
         case SET:
-            std::cerr << "{";
+            std::cout << "{";
             for (int i = 0; i < (int32_t)var.size(); ++i) {
                 print_inline(var[i]);
-                if (i + 1 != (int32_t)var.size()) std::cerr << ", ";
+                if (i + 1 != (int32_t)var.size()) std::cout << ", ";
             }
-            std::cerr << "}";
+            std::cout << "}";
             break;
         case UNORDEREDSET:
-            std::cerr << "{";
+            std::cout << "{";
             for (int i = 0; i < (int32_t)var.size(); ++i) {
                 print_inline(var[i]);
-                if (i + 1 != (int32_t)var.size()) std::cerr << ", ";
+                if (i + 1 != (int32_t)var.size()) std::cout << ", ";
             }
-            std::cerr << "}";
+            std::cout << "}";
             break;
         case MAP:
-            std::cerr << "{";
+            std::cout << "{";
             for (int i = 0; i < (int32_t)var.size(); ++i) {
                 print_inline(var[i][0]);
-                std::cerr << ": ";
+                std::cout << ": ";
                 print_inline(var[i][1]);
-                if (i != (int32_t)var.size() - 1) std::cerr << ", ";
+                if (i != (int32_t)var.size() - 1) std::cout << ", ";
             }
-            std::cerr << "}";
+            std::cout << "}";
             break;
         case UNORDEREDMAP:
-            std::cerr << "{";
+            std::cout << "{";
             for (int i = 0; i < (int32_t)var.size(); ++i) {
                 print_inline(var[i][0]);
-                std::cerr << ": ";
+                std::cout << ": ";
                 print_inline(var[i][1]);
-                if (i + 1 != (int32_t)var.size()) std::cerr << ", ";
+                if (i + 1 != (int32_t)var.size()) std::cout << ", ";
             }
-            std::cerr << "}";
+            std::cout << "}";
             break;
         case QUEUE:
-            std::cerr << "[";
+            std::cout << "[";
             for (int i = 0; i < (int32_t)var.size(); ++i) {
                 print_inline(var[i]);
-                if (i + 1 != (int32_t)var.size()) std::cerr << ", ";
+                if (i + 1 != (int32_t)var.size()) std::cout << ", ";
             }
-            std::cerr << "]";
+            std::cout << "]";
             break;
         case STACK:
-            std::cerr << "[";
+            std::cout << "[";
             for (int i = 0; i < (int32_t)var.size(); ++i) {
                 print_inline(var[i]);
-                if (i + 1 != (int32_t)var.size()) std::cerr << ", ";
+                if (i + 1 != (int32_t)var.size()) std::cout << ", ";
             }
-            std::cerr << "]";
+            std::cout << "]";
             break;
         case PRIORITYQUEUE:
-            std::cerr << "[";
+            std::cout << "[";
             for (int i = 0; i < (int32_t)var.size(); ++i) {
                 print_inline(var[i]);
-                if (i + 1 != (int32_t)var.size()) std::cerr << ", ";
+                if (i + 1 != (int32_t)var.size()) std::cout << ", ";
             }
-            std::cerr << "]";
+            std::cout << "]";
             break;
         case PBDS:
-            std::cerr << "[";
+            std::cout << "[";
             for (int i = 0; i < (int32_t)var.size(); ++i) {
                 print_inline(var[i]);
-                if (i + 1 != (int32_t)var.size()) std::cerr << ", ";
+                if (i + 1 != (int32_t)var.size()) std::cout << ", ";
             }
-            std::cerr << "]";
+            std::cout << "]";
             break;
         case MULTISET:
-            std::cerr << "{";
+            std::cout << "{";
             for (int i = 0; i < (int32_t)var.size(); ++i) {
                 print_inline(var[i]);
-                if (i + 1 != (int32_t)var.size()) std::cerr << ", ";
+                if (i + 1 != (int32_t)var.size()) std::cout << ", ";
             }
-            std::cerr << "}";
+            std::cout << "}";
+            break;
+        case BITSET:
+            std::cout << var.get<std::string>();
             break;
         case STRUCTURE:
-            std::cerr << "{";
+            std::cout << "{";
             for (int i = 0; i < (int32_t)var.size(); ++i) {
                 print_inline(var[i]);
-                if (i + 1 != (int32_t)var.size()) std::cerr << ", ";
+                if (i + 1 != (int32_t)var.size()) std::cout << ", ";
             }
-            std::cerr << "}";
+            std::cout << "}";
             break;
         default:
             break;
@@ -198,13 +209,12 @@ void process_inline(std::vector<std::pair<std::string, std::string>> &args_list)
     for (int i = 0; i < (int32_t)args_list.size(); ++i) {
         std::string var_name = args_list[i].first;
         nlohmann::json obj = nlohmann::json::parse(args_list[i].second);
-
-        std::cerr << COLOR_NAME_PREFIX << " " << var_name << " " << COLOR_SUFFIX;
-        std::cerr << " = ";
-        std::cerr << COLOR_PREFIX << " ";
+        std::cout << COLOR_NAME_PREFIX << " " << var_name << " " << COLOR_SUFFIX;
+        std::cout << " = ";
+        std::cout << COLOR_PREFIX << " ";
         print_inline(obj);
-        std::cerr << " " << COLOR_SUFFIX;
-        std::cerr << (i + 1 == (int32_t)args_list.size() ? "\n" : " ,  ");
+        std::cout << " " << COLOR_SUFFIX;
+        std::cout << (i + 1 == (int32_t)args_list.size() ? "\n" : " ,  ");
     }
 }
 
@@ -219,31 +229,31 @@ void print_block(const nlohmann::json obj, const int32_t depth, const bool color
     switch (var_type) {
         case INT32:
             if (colored) COLORPRINT(var.get<int32_t>(), depth);
-            else std::cerr << var.get<int32_t>();
+            else std::cout << var.get<int32_t>();
             break;
         case INT64:
             if (colored) COLORPRINT(var.get<int64_t>(), depth);
-            else std::cerr << var.get<int64_t>();
+            else std::cout << var.get<int64_t>();
             break;
         case UINT32:
             if (colored) COLORPRINT(var.get<uint32_t>(), depth);
-            else std::cerr << var.get<uint32_t>();
+            else std::cout << var.get<uint32_t>();
             break;
         case UINT64:
             if (colored) COLORPRINT(var.get<uint64_t>(), depth);
-            else std::cerr << var.get<uint64_t>();
+            else std::cout << var.get<uint64_t>();
             break;
         case FLOAT:
             if (colored) COLORPRINT(var.get<float>(), depth);
-            else std::cerr << var.get<float>();
+            else std::cout << var.get<float>();
             break;
         case DOUBLE:
             if (colored) COLORPRINT(var.get<double>(), depth);
-            else std::cerr << var.get<double>();
+            else std::cout << var.get<double>();
             break;
         case LONGDOUBLE:
             if (colored) COLORPRINT(var.get<long double>(), depth);
-            else std::cerr << var.get<long double>();
+            else std::cout << var.get<long double>();
             break;
         case CHAR:
             if (colored) {
@@ -251,7 +261,7 @@ void print_block(const nlohmann::json obj, const int32_t depth, const bool color
                 COLORPRINT(var.get<std::string>(), depth);
                 COLORPRINT("\'", depth);
             }
-            else std::cerr << "\'" << var.get<std::string>() << "\'";
+            else std::cout << "\'" << var.get<std::string>() << "\'";
             break;
         case CSTR:
             if (colored) {
@@ -259,7 +269,7 @@ void print_block(const nlohmann::json obj, const int32_t depth, const bool color
                 COLORPRINT(var.get<std::string>(), depth);
                 COLORPRINT("\"", depth);
             }
-            else std::cerr << "\"" << var.get<std::string>() << "\"";
+            else std::cout << "\"" << var.get<std::string>() << "\"";
             break;
         case STRING:
             if (colored) {
@@ -267,31 +277,30 @@ void print_block(const nlohmann::json obj, const int32_t depth, const bool color
                 COLORPRINT(var.get<std::string>(), depth);
                 COLORPRINT("\"", depth);
             }
-            else std::cerr << "\"" << var.get<std::string>() << "\"";
+            else std::cout << "\"" << var.get<std::string>() << "\"";
             break;
         case BOOL:
             if (colored) COLORPRINT(var.get<bool>() ? "true" : "false", depth);
-            else std::cerr << (var.get<bool>() ? "true" : "false");
+            else std::cout << (var.get<bool>() ? "true" : "false");
             break;
         case PAIR:
             COLORPRINT("pair {\n", depth);
             PADDING(depth + 1); COLORPRINT("first : ", depth); print_block(var[0], depth + 1, false);
-            if (is_basic(var[0])) std::cerr << std::endl;
-            std::cerr << std::endl;
+            if (is_basic(var[0])) std::cout << std::endl;
             PADDING(depth + 1); COLORPRINT("second: ", depth); print_block(var[1], depth + 1, false);
-            if (is_basic(var[1])) std::cerr << std::endl;
-            COLORPRINT("}", depth);
-            std::cerr << std::endl;
+            if (is_basic(var[1])) std::cout << std::endl;
+            PADDING(depth); COLORPRINT("}", depth);
+            std::cout << std::endl;
             break;
         case TUPLE:
             COLORPRINT("tuple [\n", depth);
             for (int i = 0; i < (int32_t)var.size(); ++i) {
                 PADDING(depth + 1);
                 print_block(var[i], depth + 1, false);
-                if (is_basic(var[i])) std::cerr << std::endl;
+                if (is_basic(var[i])) std::cout << std::endl;
             }
             PADDING(depth); COLORPRINT("}", depth);
-            std::cerr << std::endl;
+            std::cout << std::endl;
             break;
         case VECTOR:
             COLORPRINT("vector [\n", depth);
@@ -299,10 +308,10 @@ void print_block(const nlohmann::json obj, const int32_t depth, const bool color
                 PADDING(depth + 1);
                 COLORPRINT(i, depth); COLORPRINT(": ", depth);
                 print_block(var[i], depth + 1, false);
-                if (is_basic(var[i])) std::cerr << std::endl;
+                if (is_basic(var[i])) std::cout << std::endl;
             }
             PADDING(depth); COLORPRINT("]", depth);
-            std::cerr << std::endl;
+            std::cout << std::endl;
             break;
         case SET:
             COLORPRINT("set {\n", depth);
@@ -310,10 +319,10 @@ void print_block(const nlohmann::json obj, const int32_t depth, const bool color
                 PADDING(depth + 1);
                 COLORPRINT(i, depth); COLORPRINT(": ", depth);
                 print_block(var[i], depth + 1, false);
-                if (is_basic(var[i])) std::cerr << std::endl;
+                if (is_basic(var[i])) std::cout << std::endl;
             }
             PADDING(depth); COLORPRINT("]", depth);
-            std::cerr << std::endl;
+            std::cout << std::endl;
             break;
         case UNORDEREDSET:
             COLORPRINT("unordered set {\n", depth);
@@ -321,10 +330,10 @@ void print_block(const nlohmann::json obj, const int32_t depth, const bool color
                 PADDING(depth + 1);
                 COLORPRINT(i, depth); COLORPRINT(": ", depth);
                 print_block(var[i], depth + 1, false);
-                if (is_basic(var[i])) std::cerr << std::endl;
+                if (is_basic(var[i])) std::cout << std::endl;
             }
             PADDING(depth); COLORPRINT("]", depth);
-            std::cerr << std::endl;
+            std::cout << std::endl;
             break;
         case MAP:
             COLORPRINT("map {\n", depth);
@@ -333,10 +342,10 @@ void print_block(const nlohmann::json obj, const int32_t depth, const bool color
                 print_block(var[i][0], depth, true);
                 COLORPRINT(": ", depth);
                 print_block(var[i][1], depth, false);
-                if (is_basic(var[i][1])) std::cerr << std::endl;
+                if (is_basic(var[i][1])) std::cout << std::endl;
             }
             PADDING(depth); COLORPRINT("}", depth);
-            std::cerr << std::endl;
+            std::cout << std::endl;
             break;
         case UNORDEREDMAP:
             COLORPRINT("unordered map {\n", depth);
@@ -345,10 +354,10 @@ void print_block(const nlohmann::json obj, const int32_t depth, const bool color
                 print_block(var[i][0], depth, true);
                 COLORPRINT(": ", depth);
                 print_block(var[i][1], depth, false);
-                if (is_basic(var[i][1])) std::cerr << std::endl;
+                if (is_basic(var[i][1])) std::cout << std::endl;
             }
             PADDING(depth); COLORPRINT("}", depth);
-            std::cerr << std::endl;
+            std::cout << std::endl;
             break;
         case QUEUE:
             COLORPRINT("queue [\n", depth);
@@ -356,10 +365,10 @@ void print_block(const nlohmann::json obj, const int32_t depth, const bool color
                 PADDING(depth + 1);
                 COLORPRINT(i, depth); COLORPRINT(": ", depth);
                 print_block(var[i], depth + 1, false);
-                if (is_basic(var[i])) std::cerr << std::endl;
+                if (is_basic(var[i])) std::cout << std::endl;
             }
             PADDING(depth); COLORPRINT("]", depth);
-            std::cerr << std::endl;
+            std::cout << std::endl;
             break;
         case STACK:
             COLORPRINT("stack [\n", depth);
@@ -367,10 +376,10 @@ void print_block(const nlohmann::json obj, const int32_t depth, const bool color
                 PADDING(depth + 1);
                 COLORPRINT(i, depth); COLORPRINT(": ", depth);
                 print_block(var[i], depth + 1, false);
-                if (is_basic(var[i])) std::cerr << std::endl;
+                if (is_basic(var[i])) std::cout << std::endl;
             }
             PADDING(depth); COLORPRINT("]", depth);
-            std::cerr << std::endl;
+            std::cout << std::endl;
             break;
         case PRIORITYQUEUE:
             COLORPRINT("priority_queue [\n", depth);
@@ -378,10 +387,10 @@ void print_block(const nlohmann::json obj, const int32_t depth, const bool color
                 PADDING(depth + 1);
                 COLORPRINT(i, depth); COLORPRINT(": ", depth);
                 print_block(var[i], depth + 1, false);
-                if (is_basic(var[i])) std::cerr << std::endl;
+                if (is_basic(var[i])) std::cout << std::endl;
             }
             PADDING(depth); COLORPRINT("]", depth);
-            std::cerr << std::endl;
+            std::cout << std::endl;
             break;
         case PBDS:
             COLORPRINT("pbds [\n", depth);
@@ -389,10 +398,10 @@ void print_block(const nlohmann::json obj, const int32_t depth, const bool color
                 PADDING(depth + 1);
                 COLORPRINT(i, depth); COLORPRINT(": ", depth);
                 print_block(var[i], depth + 1, false);
-                if (is_basic(var[i])) std::cerr << std::endl;
+                if (is_basic(var[i])) std::cout << std::endl;
             }
             PADDING(depth); COLORPRINT("]", depth);
-            std::cerr << std::endl;
+            std::cout << std::endl;
             break;
         case MULTISET:
             COLORPRINT("multiset {\n", depth);
@@ -400,20 +409,36 @@ void print_block(const nlohmann::json obj, const int32_t depth, const bool color
                 PADDING(depth + 1);
                 COLORPRINT(i, depth); COLORPRINT(": ", depth);
                 print_block(var[i], depth + 1, false);
-                if (is_basic(var[i])) std::cerr << std::endl;
+                if (is_basic(var[i])) std::cout << std::endl;
             }
             PADDING(depth); COLORPRINT("}", depth);
-            std::cerr << std::endl;
+            std::cout << std::endl;
             break;
+        case BITSET: {
+            std::string s = var.get<std::string>();
+            std::istringstream iss(s);
+            std::string bin, hex; iss >> bin >> hex;
+            if (colored) {
+                COLORPRINT(s, depth);
+            }
+            else {
+                COLORPRINT("bitset {\n", depth);
+                PADDING(depth + 1); COLORPRINT("binary: ", depth); std::cout << bin << std::endl;
+                PADDING(depth + 1); COLORPRINT("hex   : ", depth); std::cout << hex << std::endl;
+                PADDING(depth); COLORPRINT("}", depth);
+                std::cout << std::endl;
+            }
+            break;
+        }
         case STRUCTURE:
             COLORPRINT("struct {\n", depth);
             for (int i = 0; i < (int32_t)var.size(); ++i) {
                 PADDING(depth + 1);
                 print_block(var[i], depth + 1, false);
-                if (is_basic(var[i])) std::cerr << std::endl;
+                if (is_basic(var[i])) std::cout << std::endl;
             }
             PADDING(depth); COLORPRINT("}", depth);
-            std::cerr << std::endl;
+            std::cout << std::endl;
             break;
         default:
             break;
@@ -425,10 +450,10 @@ void process_block(std::vector<std::pair<std::string, std::string>> &args_list) 
         std::string var_name = args_list[i].first;
         nlohmann::json obj = nlohmann::json::parse(args_list[i].second);
 
-        std::cerr << COLOR_NAME_PREFIX << " " << var_name << " " << COLOR_SUFFIX << " =" << std::endl;
+        std::cout << COLOR_NAME_PREFIX << " " << var_name << " " << COLOR_SUFFIX << " =" << std::endl;
         print_block(obj, 0, false);
-        if (is_basic(obj)) std::cerr << std::endl;
-        if (i + 1 == (int32_t)args_list.size()) std::cerr << std::endl;
+        if (is_basic(obj)) std::cout << std::endl;
+        if (i + 1 == (int32_t)args_list.size()) std::cout << std::endl;
     }
 }
 
@@ -493,6 +518,8 @@ nlohmann::json print_json(const nlohmann::json &obj) {
         case MULTISET:
             for (int i = 0; i < (int32_t)var.size(); ++i) rtn.push_back(print_json(var[i]));
             return rtn;
+        case BITSET:
+            return var.get<std::string>();
         case STRUCTURE:
             for (int i = 0; i < (int32_t)var.size(); ++i) rtn.push_back(print_json(var[i]));
             return rtn;
@@ -520,3 +547,4 @@ void _preprocess(const int32_t mode, std::vector<std::pair<std::string, std::str
     else if (mode == 1) process_block(args_list);
     else if (mode == 2) process_json(args_list);
 }
+

@@ -37,7 +37,8 @@
 #define PRIORITYQUEUE 20
 #define PBDS 21
 #define MULTISET 22
-#define STRUCTURE 23
+#define BITSET 23
+#define STRUCTURE 24
 
 std::string _split_name(std::string &args_name);
 std::string _combine(const int32_t var_type, const std::string &var_value);
@@ -52,8 +53,9 @@ template<typename T, typename V, class C> std::string _print(const std::unordere
 template<typename T> std::string _print(const std::queue<T> &var);
 template<typename T> std::string _print(const std::stack<T> &var);
 template<typename T, typename C, typename comp> std::string _print(const std::priority_queue<T, C, comp> &var);
-template <typename T, class C> std::string _print(const __gnu_pbds::tree<T, __gnu_pbds::null_type, C, __gnu_pbds::rb_tree_tag, __gnu_pbds::tree_order_statistics_node_update> &var);
+template<typename T, class C> std::string _print(const __gnu_pbds::tree<T, __gnu_pbds::null_type, C, __gnu_pbds::rb_tree_tag, __gnu_pbds::tree_order_statistics_node_update> &var);
 template<typename T, class C> std::string _print(const std::multiset<T, C> &var);
+template<size_t T> std::string _print(const std::bitset<T> &var);
 template<typename T> std::string _print(const T &var);
 
 std::string _print(const int32_t &var);
@@ -68,6 +70,7 @@ std::string _print(const char &var);
 std::string _print(const char *var);
 std::string _print(const std::string &var);
 std::string _print(const bool &var);
+std::string _print(const std::_Bit_reference &var);
 
 // pair
 template<typename T, typename V>
@@ -80,8 +83,8 @@ std::string _print(const std::pair<T, V> &var) {
 // tuple
 template<typename... Args>
 std::string _print(const std::tuple<Args...> &var) {
-    std::string s = "[";
-    std::apply([&s](auto &&... args) { ((s += _print(args) + ","), ...); }, var);
+    std::string s = "[ ";
+    std::apply([&s](const auto &&... args) { ((s += _print(args) + ","), ...); }, var);
     s.pop_back();
     s += "]";
     return _combine(TUPLE, s);
@@ -90,8 +93,8 @@ std::string _print(const std::tuple<Args...> &var) {
 // vector
 template<typename T>
 std::string _print(const std::vector<T> &var) {
-    std::string s = "[";
-    for (auto &i: var) s += _print(i) + ",";
+    std::string s = "[ ";
+    for (const auto &i: var) s += _print(i) + ",";
     s.pop_back();
     s += "]";
     return _combine(VECTOR, s);
@@ -100,8 +103,8 @@ std::string _print(const std::vector<T> &var) {
 // set
 template<typename T, class C>
 std::string _print(const std::set<T, C> &var) {
-    std::string s = "[";
-    for (auto &i: var) s += _print(i) + ",";
+    std::string s = "[ ";
+    for (const auto &i: var) s += _print(i) + ",";
     s.pop_back();
     s += "]";
     return _combine(SET, s);
@@ -110,8 +113,8 @@ std::string _print(const std::set<T, C> &var) {
 // unordered set
 template<typename T, class C>
 std::string _print(const std::unordered_set<T, C> &var) {
-    std::string s = "[";
-    for (auto &i: var) s += _print(i) + ",";
+    std::string s = "[ ";
+    for (const auto &i: var) s += _print(i) + ",";
     s.pop_back();
     s += "]";
     return _combine(UNORDEREDSET, s);
@@ -120,8 +123,8 @@ std::string _print(const std::unordered_set<T, C> &var) {
 // map
 template<typename T, typename V, class C>
 std::string _print(const std::map<T, V, C> &var) {
-    std::string s = "[";
-    for (auto &[i, j]: var) {
+    std::string s = "[ ";
+    for (const auto &[i, j]: var) {
         std::string key = _print(i);
         std::string value = _print(j);
         s += "[" + key + "," + value + "],";
@@ -134,8 +137,8 @@ std::string _print(const std::map<T, V, C> &var) {
 // unordered map
 template<typename T, typename V, class C>
 std::string _print(const std::unordered_map<T, V, C> &var) {
-    std::string s = "[";
-    for (auto &[i, j]: var) {
+    std::string s = "[ ";
+    for (const auto &[i, j]: var) {
         std::string key = _print(i);
         std::string value = _print(j);
         s += "[" + key + "," + value + "],";
@@ -149,7 +152,7 @@ std::string _print(const std::unordered_map<T, V, C> &var) {
 template<typename T>
 std::string _print(const std::queue<T> &var) {
     std::queue<T> tmp = var;
-    std::string s = "[";
+    std::string s = "[ ";
     while (!tmp.empty()) {
         s += _print(tmp.front()) + ",";
         tmp.pop();
@@ -163,7 +166,7 @@ std::string _print(const std::queue<T> &var) {
 template<typename T>
 std::string _print(const std::stack<T> &var) {
     std::stack<T> tmp = var;
-    std::string s = "[";
+    std::string s = "[ ";
     while (!tmp.empty()) {
         s += _print(tmp.top()) + ",";
         tmp.pop();
@@ -177,7 +180,7 @@ std::string _print(const std::stack<T> &var) {
 template<typename T, typename C, typename comp>
 std::string _print(const std::priority_queue<T, C, comp> &var) {
     std::priority_queue<T, C, comp> tmp = var;
-    std::string s = "[";
+    std::string s = "[ ";
     while (!tmp.empty()) {
         s += _print(tmp.top()) + ",";
         tmp.pop();
@@ -190,8 +193,8 @@ std::string _print(const std::priority_queue<T, C, comp> &var) {
 // pbds
 template <typename T, class C>
 std::string _print(const __gnu_pbds::tree<T, __gnu_pbds::null_type, C, __gnu_pbds::rb_tree_tag, __gnu_pbds::tree_order_statistics_node_update> &var) {
-    std::string s = "[";
-    for (auto &i: var) s += _print(i) + ",";
+    std::string s = "[ ";
+    for (const auto &i: var) s += _print(i) + ",";
     s.pop_back();
     s += "]";
     return _combine(PBDS, s);
@@ -200,18 +203,33 @@ std::string _print(const __gnu_pbds::tree<T, __gnu_pbds::null_type, C, __gnu_pbd
 // multiset
 template<typename T, class C>
 std::string _print(const std::multiset<T, C> &var) {
-    std::string s = "[";
-    for (auto &i: var) s += _print(i) + ",";
+    std::string s = "[ ";
+    for (const auto &i: var) s += _print(i) + ",";
     s.pop_back();
     s += "]";
     return _combine(MULTISET, s);
 }
 
+// bitset
+template <size_t T>
+std::string _print(const std::bitset<T> &var) {
+    std::string s = var.to_string();
+    std::string h;
+    char ch[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+    for (int i = 0; i < (int)T; i += 4) {
+        int n = 0;
+        for (int j = std::min(i+4, (int)T) - 1; j >= i; --j) n = (n << 1) + var[j];
+        h = ch[n] + h;
+    }
+    s = "\"" + s + " 0x" + h + "\"";
+    return _combine(BITSET, s);
+}
+
 // struct
 template<typename T>
 std::string _print(const T &var) {
-    std::string s = "[";
-    boost::pfr::for_each_field(var, [&](auto &&t) {
+    std::string s = "[ ";
+    boost::pfr::for_each_field(var, [&](const auto &&t) {
         s += _print(t) + ",";
     });
     s.pop_back();
@@ -237,3 +255,4 @@ void _debug_print(const int32_t mode, const std::string args_name, const Args...
 }
 
 #endif
+
